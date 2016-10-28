@@ -2,37 +2,6 @@ import urllib
 from lxml import etree
 import os
 
-number = raw_input('Please choose the genID for your target gene:\n')
-gene_url='https://www.ncbi.nlm.nih.gov'+'/gene/'+number
-print 'loading......'
-html = etree.HTML(urllib.urlopen(gene_url).read())
-
-
-protein_url = 'https://www.ncbi.nlm.nih.gov/protein?LinkName=gene_protein_refseq&from_uid=' + number
-RNA_url = 'https://www.ncbi.nlm.nih.gov/nuccore?LinkName=gene_nuccore_refseqrna&from_uid='+ number
-DNA_url = 'https://www.ncbi.nlm.nih.gov'+html.xpath('//*[@class="divAccession"]/div/p/a[2]/@href')[0]
-imgscr = html.xpath('//*[@id="padded_content"]/div[6]/div[2]/div[2]/div[2]/p/img/@src')[0]
-GID = imgscr.split('nuc_gi=')[1].split('&')[0]
-DNA_url = DNA_url.split('from=')[-1].split('to=')
-DNA_fasta_url = 'https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id='+GID+'&db=nuccore&report=fasta&from='+DNA_url[0]+'&to='+DNA_url[1]
-
-
-
-# print DNA_fasta_url
-
-
-
-
-
-#print html.read()
-#print type(html.read())
-#print html.readline()
-#print html.info()
-#print html.getcode()
-#print html.readlines()
-#print html.fileno()https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id=1036030432&db=nuccore&report=fasta
-
-
 def seqtype(url):
     global url_header
     url_header = url.split("?")[0]
@@ -40,19 +9,23 @@ def seqtype(url):
     return url_header.split("/")[-1]
     
 def GIs(html):
-    GIs = html.xpath('//*[@id="maincontent"]/div/div[5]/div/div[2]/div[2]/div/dl/dd[2]/text() ')
-    return GIs
+    #html is 
+    GI = html.xpath('//*[@id="maincontent"]/div/div[5]/div/div[2]/div[2]/div/dl/dd[2]/text() ')
+    return GI
 
 def fasta_url(GI):
+    # GI is not geneID in the ncbi
     t = []
     global object
-    if object == 'protein':
+    if object == 'protein' and type(GI) == type([]):
         for j in GI:
             t.append( 'https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id='+ j +'&db=protein&report=fasta')
-    else:
+    elif object != 'protein' and type(GI) == type([]):
         for j in GI:
             t.append( 'https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id='+ j +'&db=nuccore&report=fasta')
-            
+    else:
+        t.append( 'https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id='+ GI +'&db=nuccore&report=fasta')
+
     #varible = fasta_url
     return t
 
@@ -75,53 +48,147 @@ def genbank_url(fasta_urls):
 
 
 def get_fasta_sq(fasta_urls):
-    global object
+    #fasta_urls is the urls modified by function fasta_url
+    global object,GID
+
     new = os.path.join(os.getcwd(),GID+" "+object)
     try:
         os.makedirs(new)
+        print 'have create the new directory ' + str(new)
     except:
          print "can't create a new directory"
-
-    for i in fasta_urls:
-        t = etree.HTML(urllib.urlopen(i).read())
+    if type(fasta_urls) == type([]):
+        for i in fasta_urls:
+            t = etree.HTML(urllib.urlopen(i).read())
+            print 'have got the fasta page'
         # //*[@id="gi_1036030432"]/div/div[2]/p[3]/span[1]
         # //*[@id="gi_1036030432"]/div/div[2]/p[1]/a
-        title1 = t.xpath('//*[@id="content"]/div/div[1]/div/div[2]/p[3]/span[1]/text()')[0].split('G')[0]
-        title2 = t.xpath('//*[@id="content"]/div/div[1]/div/div[2]/p[1]/a/text()')[0].split('(')[-1]
-        title = title2 + ' ' + title1 + 'fasta.txt'
+            title1 = t.xpath('//*[@id="content"]/div/div[1]/div/div[2]/p[3]/span[1]/text()')[0].split('G')[0]
+            title2 = t.xpath('//*[@id="content"]/div/div[1]/div/div[2]/p[1]/a/text()')[0].split('(')[-1]
+            title = title2 + ' ' + title1 + 'fasta.txt'
+            t = t.xpath('//*[@id="content"]/div/div[2]/text()')[0]
+            t.strip('"')
+            t.strip()
+            title = os.path.join(new,title)
+            f = open(title,'w')
+            f.write(t)
+            f.close()
+            print 'Have dowloaded the ' + object + ': ' + title
+    else:
+        try:
+            os.makedirs(new)
+            print 'have create the new directory ' + str(new)
+        except:
+            print "can't create a new directory"
+
+        t = etree.HTML(urllib.urlopen(fasta_urls).read())
+        print 'have got the fasta page'
+        # //*[@id="gi_1036030432"]/div/div[2]/p[3]/span[1]
+        # //*[@id="gi_1036030432"]/div/div[2]/p[1]/a
+        title1 = t.xpath('//*[@class="aux"]/span[1]/text()')[0].split('G')[0]
+        title2 = t.xpath('//*[@class="title"]/a/text()')[0].split('(')[-1]
         t = t.xpath('//*[@id="content"]/div/div[2]/text()')[0]
+        title = title2 + ' ' + title1 + 'fasta.txt'
         t.strip('"')
         t.strip()
         title = os.path.join(new,title)
         f = open(title,'w')
         f.write(t)
         f.close()
-        print 'Have dowloaded the ' + object + ': ' title
+        print 'Have dowloaded the ' + object + ': ' + title 
 
 
 def get_non_DNA_seq(url):
+
     global object
     html = etree.HTML(urllib.urlopen(url).read())
     object = seqtype(url)
     GI = GIs(html)
     fasta_urls = fasta_url(GI)
-    genbank_urls = genbank_url(fasta_urls)
+
     get_fasta_sq(fasta_urls)
 
 
+def get_DNA_seq(fasta_urls):
+    #fasta_urls is DNA_fasta_url like: https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id=1036030432&db=nuccore&report=fasta&from=0&to=20
+    global object
+    global GID
+    new = os.path.join(os.getcwd(), GID +" "+object)
+    try:
+        os.makedirs(new)
+        print 'have create the new directory ' + str(new)
+    except:
+         print "can't create a new directory"
 
-get_non_DNA_seq(RNA_url)
-get_non_DNA_seq(protein_url)
-object = 'DNA'
-get_fasta_sq(DNA_fasta_url)
+    t = etree.HTML(urllib.urlopen(fasta_urls).read())
+    print 'have got the fasta page'
+        # //*[@id="gi_1036030432"]/div/div[2]/p[3]/span[1]
+        # //*[@id="gi_1036030432"]/div/div[2]/p[1]/a
+    title1 = t.xpath('//*[@class="aux"]/span[1]/text()')[0].split('G')[0]
+    title2 = t.xpath('//*[@class="title"]/a/text()')[0].split('(')[-1]
+    t = t.xpath('//*[@id="content"]/div/div[2]/text()')[0]
+    title = title2 + ' ' + title1 + 'fasta.txt'
+    t.strip('"')
+    t.strip()
+    title = os.path.join(new,title)
+    f = open(title,'w')
+    f.write(t)
+    f.close()
+    print 'Have dowloaded the ' + 'DNA' + ': ' + title 
 
-#print fasta_url
-#f = open('html.txt','r')
-#f.write(html.read())
-#f.close()
-#f=open('fasta.txt','r')
-#fasta=urllib.urlopen(fasta_url[0]).read()
-#f.write(fasta)
-#f.close()
-#print 'done'
-#print fasta'''
+
+
+
+
+
+
+
+def main(number):
+    global object, GID
+    try:
+        print 'Checking your internet...\n'
+        urllib.urlopen('https://www.baidu.com/')
+        print 'your Internet Works Well\n'
+        
+        if number[0] == '0' or number[0] == '1' or number[0] == '2' or number[0] == '3' or number[0] == '4' or number[0] == '5' or number[0] == '6' or number[0] == '7' or number[0] == '8' or number[0] == '9':
+            gene_url='https://www.ncbi.nlm.nih.gov'+'/gene/'+number
+            print 'loading......'
+            html = etree.HTML(urllib.urlopen(gene_url).read())
+            protein_url = 'https://www.ncbi.nlm.nih.gov/protein?LinkName=gene_protein_refseq&from_uid=' + number
+            RNA_url = 'https://www.ncbi.nlm.nih.gov/nuccore?LinkName=gene_nuccore_refseqrna&from_uid='+ number
+            DNA_url = 'https://www.ncbi.nlm.nih.gov'+html.xpath('//*[@class="divAccession"]/div/p/a[2]/@href')[0]
+            imgscr = html.xpath('//*[@id="padded_content"]/div[6]/div[2]/div[2]/div[2]/p/img/@src')[0]
+            GID = imgscr.split('nuc_gi=')[1].split('&')[0]
+            DNA_url = DNA_url.split('from=')[-1].split('to=')
+            DNA_fasta_url = 'https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id='+GID+'&db=nuccore&report=fasta&from='+DNA_url[0]+'to='+DNA_url[1]
+            
+            get_non_DNA_seq(RNA_url)
+            print 'have done all things with RNA\n'
+            get_non_DNA_seq(protein_url)
+            print 'have done all things with Protein\n'
+            object = 'DNA'
+            print 'Begin with DNA...' +  DNA_fasta_url
+            get_DNA_seq(DNA_fasta_url)
+            print 'have done all things with DNA\n'
+            raw_input('Done all things plese press ENTER to quit :)')
+        else:
+            object = number
+            url = "https://www.ncbi.nlm.nih.gov/nuccore/" + number
+            print url
+            html = etree.HTML(urllib.urlopen(url).read())
+            print 'page got'
+            GID = html.xpath('//*[@class="dblinks"]/@href')[0].split('/')[-1].split('?')[0]
+            print GID
+            fasta_urls = fasta_url(GID)[0]
+            print fasta_urls
+            get_fasta_sq(fasta_urls)
+    except:
+        print 'There is something wrong with your intenet or other bugs'
+
+f=open('input.txt','r')
+number = f.readlines
+f.close()
+
+for i in number:
+    i.strip()
+    main(i)
