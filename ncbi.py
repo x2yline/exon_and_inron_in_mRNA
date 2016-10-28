@@ -76,18 +76,23 @@ def genbank_url(fasta_urls):
 
 def get_fasta_sq(fasta_urls):
     global object
+    new = os.path.join(os.getcwd(),GID+" "+object)
+    try:
+        os.makedirs(new)
+    except:
+         print "can't create a new directory"
+
     for i in fasta_urls:
         t = etree.HTML(urllib.urlopen(i).read())
         # //*[@id="gi_1036030432"]/div/div[2]/p[3]/span[1]
         # //*[@id="gi_1036030432"]/div/div[2]/p[1]/a
         title1 = t.xpath('//*[@id="content"]/div/div[1]/div/div[2]/p[3]/span[1]/text()')[0].split('G')[0]
-        title2 = t.xpath('//*[@id="content"]/div/div[1]/div/div[2]/p[1]/a/text()')[0].split('(')[-1].split(')')[0]
+        title2 = t.xpath('//*[@id="content"]/div/div[1]/div/div[2]/p[1]/a/text()')[0].split('(')[-1]
         title = title2 + ' ' + title1 + 'fasta.txt'
         t = t.xpath('//*[@id="content"]/div/div[2]/text()')[0]
         t.strip('"')
         t.strip()
-        # os.mkdir(object)
-        # os.getcwd+'\\'+title2 +' ' + object+'\\'+
+        title = os.path.join(new,title)
         f = open(title,'w')
         f.write(t)
         f.close()
@@ -108,7 +113,7 @@ def get_non_DNA_seq(url):
 get_non_DNA_seq(RNA_url)
 get_non_DNA_seq(protein_url)
 object = 'DNA'
-# get_fasta_sq(DNA_fasta_url)
+get_fasta_sq(DNA_fasta_url)
 
 #print fasta_url
 #f = open('html.txt','r')
